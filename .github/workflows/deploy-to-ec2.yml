@@ -24,34 +24,45 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: download the code and put it in the machine
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.3
 
+      # This step builds the Docker image
       - name: Build the Docker image
         run: docker build -t docker-tutorial .
 
+      # This step logs in to Docker Hub
       - name: Log in to Docker Hub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3.1.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Push Image to Docker Hub
+      # This step pushes the image to Docker Hub
+      - name: Tag & Push Image to Docker Hub
         run: |
           docker tag docker-tutorial ${{ secrets.DOCKER_USERNAME }}/docker-tutorial:latest
           docker push ${{ secrets.DOCKER_USERNAME }}/docker-tutorial:latest
 
+  # Define a job named "deploy" to deploy the application
   deploy:
     runs-on: ubuntu-latest
-
+    # Specify that this job depends on the successful completion of the "build" job
     needs: build
-
+    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+      # Step to deploy the application to an EC2 instance
       - name: Deploy to EC2 AWS
+        # Use the appleboy/ssh-action GitHub Action to execute commands on the remote EC2 instance via SSH
         uses: appleboy/ssh-action@master
+        # Provide inputs required by the SSH action
         with:
+          # Obtain the host IP or domain name of the EC2 instance from GitHub secrets
           host: ${{ secrets.EC2_HOST }}
+          # Obtain the username used to SSH into the EC2 instance from GitHub secrets
           username: ${{ secrets.EC2_USERNAME }}
+          # Obtain the private key used for SSH authentication from GitHub secrets
           key: ${{ secrets.EC2_PRIVATE_KEY }}
+          # Specify the script block containing the commands to be executed on the remote EC2 instance
           script: |
             sudo docker pull ${{ secrets.DOCKER_USERNAME }}/docker-tutorial:latest
             sudo docker stop docker-tutorial || true
